@@ -1,6 +1,6 @@
 name: Publish
 
-on: 
+on:
   pull_request:
 
 permissions: {}
@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write  # Required for adding the labels to the PR
-      issues: write  # Required for adding labels to the repository
-      packages: write  # Required for pushing the Docker image to GitHub Packages
+      pull-requests: write # Required for adding the labels to the PR
+      issues: write # Required for adding labels to the repository
+      packages: write # Required for pushing the Docker image to GitHub Packages
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -26,7 +26,6 @@ jobs:
         id: semVersie
         uses: RonaldPhilipsen/semVersie@v2.2.0
         with:
-          build-metadata: ${{ github.sha }}
           add-pr-label: true
 
       - name: Install dependencies
@@ -34,22 +33,22 @@ jobs:
 
       - name: Build
         env:
-          VERSION: ${{ needs.semVersie.outputs.tag }}
+          VERSION: ${{ steps.semVersie.outputs.tag }}
           GIT_SHA: ${{ github.sha }}
         run: |
-            go build \
-            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$(VERSION)' -X 'main.BuildCommitSha=$(GIT_SHA)' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+          go build \
+            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
             -o dist/gaggiuino-exporter
 
-      # Build the Docker image and push it to Docker Hub
       - name: Build and Push Docker Image
-        if: ${{ needs.semVersie.outputs.tag }}
+        if: ${{ steps.semVersie.outputs.tag }}
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: ronaldphilipsen/gaggiuino-exporter:${{ needs.semVersie.outputs.tag }}
+          push: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == 'true') || steps.semVersie.outputs.prerelease == 'true' }}
+          provenance: mode=max
+          tags: ronaldphilipsen/gaggiuino-exporter:${{ steps.semVersie.outputs.tag }}
 
       # If the PR is merged to main, we want to create a release and tag it.
       - name: Tag Release
@@ -57,14 +56,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git tag ${{ needs.semVersie.outputs.tag }}
-          git push origin ${{ needs.semVersie.outputs.tag }}
+          git tag ${{ steps.semVersie.outputs.tag }}
+          git push origin ${{ steps.semVersie.outputs.tag }}
       - name: Create Release
         if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create ${{ needs.semVersie.outputs.tag }} \
+          gh release create ${{ steps.semVersie.outputs.tag }} \
             --title '${{ steps.semVersie.outputs.tag }}' \
             --notes '${{ steps.semVersie.outputs.release-notes }}' \
             $([[ '${{ steps.semVersie.outputs.prerelease }}' == 'true' ]] && echo '--prerelease' || echo '') \
