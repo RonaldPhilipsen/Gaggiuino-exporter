@@ -21,7 +21,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Required for pushing the release and tag to the repository
       pull-requests: write # Required for adding the labels to the PR
       attestations: write # Required for pushing the SBOM and provenance to GitHub Container Registry
       id-token: write # Required for pushing the SBOM and provenance to GitHub Container Registry
