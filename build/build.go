@@ -1,5 +1,6 @@
 package build
 
+// TODO: Figure out if the LDflags actually work
 var (
 	// BuildVersion is the tagged version of the binary
 	BuildVersion = "<<< filled in by build >>>"
