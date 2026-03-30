@@ -5,6 +5,9 @@ on:
 
 permissions: {}
 
+env:
+  IMAGE_NAME: RonaldPhilipsen/gaggiuino-exporter
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,9 +43,18 @@ jobs:
             -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
             -o dist/gaggiuino-exporter
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+
       - name: Build and Push Docker Image
         if: ${{ steps.semVersie.outputs.tag }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
