@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - opened
+      - closed
+      - edited
+      - labeled
+      - unlabeled
+      - synchronize
+    branches:
+      - main
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for pushing the release and tag to the repository
+      pull-requests: write # Required for adding the labels to the PR
+      issues: write # Required for adding labels to the repository
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Go 1.25.8
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.1
+
+      - name: Calculate version
+        id: semVersie
+        uses: RonaldPhilipsen/semVersie@v2.2.0
+        with:
+          add-pr-label: true
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Build
+        env:
+          VERSION: ${{ steps.semVersie.outputs.tag }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          go build \
+            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+            -o dist/gaggiuino-exporter
+
+      - name: Tag Release
+        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag ${{ steps.semVersie.outputs.tag }}
+          git push origin ${{ steps.semVersie.outputs.tag }}
+
+      - name: Create Release
+        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ steps.semVersie.outputs.tag }} \
+            --title '${{ steps.semVersie.outputs.tag }}' \
+            --notes '${{ steps.semVersie.outputs.release-notes }}' \
+            $([[ '${{ steps.semVersie.outputs.prerelease }}' == 'true' ]] && echo '--prerelease' || echo '') \
+            dist/gaggiuino-exporter
