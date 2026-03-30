@@ -87,16 +87,16 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-      # If the PR is merged to main, we want to create a release and tag it.
+      # If the PR is merged to main and semVersie indicates a real release, create a release and tag it.
       - name: Tag Release
-        if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
+        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git tag ${{ steps.semVersie.outputs.tag }}
           git push origin ${{ steps.semVersie.outputs.tag }}
       - name: Create Release
-        if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
+        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
