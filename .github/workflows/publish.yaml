@@ -6,14 +6,17 @@ on:
 permissions: {}
 
 env:
-  IMAGE_NAME: RonaldPhilipsen/gaggiuino-exporter
+  REGISTRY: ghcr.io
+  IMAGE_NAME:  ${{ github.repository }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write # Required for adding the labels to the PR
+      attestations: write # Required for pushing the SBOM and provenance to GitHub Container Registry
+      id-token: write # Required for pushing the SBOM and provenance to GitHub Container Registry
       issues: write # Required for adding labels to the repository
       packages: write # Required for pushing the Docker image to GitHub Packages
 
@@ -46,21 +49,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          images: ${{ env.IMAGE_NAME }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
-        if: ${{ steps.semVersie.outputs.tag }}
-        uses: docker/build-push-action@v7
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
-          file: ./Dockerfile
           push: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == 'true') || steps.semVersie.outputs.prerelease == 'true' }}
-          provenance: mode=max
-          tags: ronaldphilipsen/gaggiuino-exporter:${{ steps.semVersie.outputs.tag }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        if: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == 'true') || steps.semVersie.outputs.prerelease == 'true' }}
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
 
       # If the PR is merged to main, we want to create a release and tag it.
       - name: Tag Release
