@@ -27,7 +27,7 @@ FROM build-stage AS run-test-stage
 RUN go test -v ./...
 
 # Deploy the application binary into a lean image
-FROM gcr.io/distroless/static-debian11 AS build-release-stage
+FROM gcr.io/distroless/static-debian11@sha256:1dbe426d60caed5d19597532a2d74c8056cd7b1674042b88f7328690b5ead8ed AS build-release-stage
 LABEL org.opencontainers.image.source=https://github.com/RonaldPhilipsen/gaggiuino-exporter 
 LABEL org.opencontainers.image.description="Gaggiuino Prometheus Exporter" 
 LABEL org.opencontainers.image.licenses=MIT
