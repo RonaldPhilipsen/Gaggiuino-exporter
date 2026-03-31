@@ -10,14 +10,15 @@ on:
       - synchronize
     branches:
       - main
-permissions:
-  contents: read
-  pull-requests: write # Required for adding the labels to the PR
-  issues: write # Required for adding labels to the repository
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # Required for adding the labels to the PR
+      issues: write # Required for adding labels to the repository
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6

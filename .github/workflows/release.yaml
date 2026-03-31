@@ -4,17 +4,19 @@ on:
   push:
     branches:
       - main
-permissions:
-  contents: write
+
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Go 1.25.8
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
@@ -41,18 +43,24 @@ jobs:
 
       - name: Tag Release
         if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
+        env:
+          TAG: ${{ steps.semVersie.outputs.tag }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          git tag ${{ steps.semVersie.outputs.tag }}
-          git remote set-url origin https://git:${{ secrets.TAG_PUSH_PAT }}@github.com/${{ github.repository }}
-          git push origin ${{ steps.semVersie.outputs.tag }}
+          git tag "$TAG"
+          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}
+          git push origin "$TAG"
 
       - name: Create Release
         if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.TAG_PUSH_PAT }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.semVersie.outputs.tag }}
+          RELEASE_NOTES: ${{ steps.semVersie.outputs.release-notes }}
+          PRERELEASE: ${{ steps.semVersie.outputs.prerelease }}
         run: |
-          gh release create ${{ steps.semVersie.outputs.tag }} \
-            --title '${{ steps.semVersie.outputs.tag }}' \
-            --notes '${{ steps.semVersie.outputs.release-notes }}' \
-            $([[ '${{ steps.semVersie.outputs.prerelease }}' == 'true' ]] && echo '--prerelease' || echo '') \
-            dist/gaggiuino-exporter
+          if [ "$PRERELEASE" = 'true' ]; then
+            gh release create "$TAG" --title "$TAG" --notes "$RELEASE_NOTES" --prerelease dist/gaggiuino-exporter
+          else
+            gh release create "$TAG" --title "$TAG" --notes "$RELEASE_NOTES" dist/gaggiuino-exporter
+          fi
