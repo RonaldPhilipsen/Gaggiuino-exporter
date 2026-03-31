@@ -18,6 +18,9 @@ Flags:
   -m, --mode string                       Expose method - either 'state' or 'http' (default "http")
 ```
 
+By default the collector sends requests to gaggiuino.local, as this is the default mdns name.
+This can be overridden by setting the `GAGGIUINO_BASE_URL` env variable.
+
 ## Example output
 
 ```plaintext

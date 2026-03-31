@@ -67,9 +67,8 @@ func initConfig() {
 }
 
 func printHeader() {
-	log.Printf("gaggiuino-exporter %s	build date: %s	sha1: %s	Go: %s	GOOS: %s	GOARCH: %s",
+	log.Printf("gaggiuino-exporter %s	sha1: %s	Go: %s	GOOS: %s	GOARCH: %s",
 		build.BuildVersion,
-		build.BuildDate,
 		build.BuildCommitSha,
 		runtime.Version(),
 		runtime.GOOS,

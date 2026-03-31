@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -71,6 +72,8 @@ var (
 	}
 )
 
+var lastUpState int32 = -1 // -1 unknown, 0 down, 1 up
+
 func init() {
 	prometheus.MustRegister(collectors...)
 }
@@ -98,11 +101,18 @@ func (e *Exporter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	state, err := GetState(e.baseURL)
 	if err != nil {
+		if logOnStateChange(e.baseURL, err, false) {
+			log.Printf("failed to get state from %s: %v", e.baseURL, err)
+		}
 		gaggiuino_up.Set(0)
-		log.Printf("failed to get state from %s: %v", e.baseURL, err)
 		promhttp.Handler().ServeHTTP(w, req)
 		return
 	}
+
+	if logOnStateChange(e.baseURL, nil, true) {
+		log.Printf("recovered connectivity to %s", e.baseURL)
+	}
+
 	gaggiuino_up.Set(1)
 	gaggiuino_uptime_seconds.Set(float64(state.Uptime))
 	gaggiuino_profile_id.Set(float64(state.ProfileId))
@@ -113,6 +123,25 @@ func (e *Exporter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	gaggiuino_shot_weight.Set(state.Weight)
 
 	promhttp.Handler().ServeHTTP(w, req)
+}
+
+func logOnStateChange(baseURL string, err error, up bool) bool {
+	newState := int32(0)
+	if up {
+		newState = 1
+	}
+
+	oldState := atomic.LoadInt32(&lastUpState)
+	if oldState == newState {
+		return false
+	}
+
+	atomic.StoreInt32(&lastUpState, newState)
+	if oldState == -1 && up {
+		return false
+	}
+
+	return true
 }
 
 func (e *Exporter) authorizeReq(w http.ResponseWriter, req *http.Request) bool {

@@ -13,11 +13,11 @@ ARG VERSION=v0.0.0 \
 
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    PACKAGE=github.com/RonaldPhilipsen/gaggiuino-exporter \
-    LDFLAGS="-s -w -extldflags '-static' \
-            -X '$(PACKAGE)/build.BuildVersion=$(VERSION)' \
-            -X '$(PACKAGE)/build.BuildCommitSha=$(GIT_SHA)' \
-            -X '$(PACKAGE)/build.BuildDate=$(shell LC_ALL=en_US.UTF-8 date)'"
+    PACKAGE=github.com/RonaldPhilipsen/gaggiuino-exporter 
+
+ENV LDFLAGS="-s -w -extldflags '-static' \
+    -X $PACKAGE/build.BuildVersion=$VERSION \
+    -X $PACKAGE/build.BuildCommitSha=$GIT_SHA"
 
 RUN go build -ldflags="$LDFLAGS" -o /dist/gaggiuino-exporter
 
