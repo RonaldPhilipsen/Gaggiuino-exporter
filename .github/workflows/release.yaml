@@ -1,28 +1,20 @@
 name: Release
 
 on:
-  pull_request:
-    types:
-      - opened
-      - closed
-      - edited
-      - labeled
-      - unlabeled
-      - synchronize
+  push:
     branches:
       - main
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required for pushing the release and tag to the repository
-      pull-requests: write # Required for adding the labels to the PR
-      issues: write # Required for adding labels to the repository
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Go 1.25.8
         uses: actions/setup-go@v6
@@ -32,8 +24,6 @@ jobs:
       - name: Calculate version
         id: semVersie
         uses: RonaldPhilipsen/semVersie@v2.2.0
-        with:
-          add-pr-label: true
 
       - name: Install dependencies
         run: go get .
@@ -48,14 +38,14 @@ jobs:
             -o dist/gaggiuino-exporter
 
       - name: Tag Release
-        if: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true) || steps.semVersie.outputs.prerelease == 'true' }}
+        if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
         run: |
           git tag ${{ steps.semVersie.outputs.tag }}
           git remote set-url origin https://git:${{ secrets.TAG_PUSH_PAT }}@github.com/${{ github.repository }}
           git push origin ${{ steps.semVersie.outputs.tag }}
 
       - name: Create Release
-        if: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true) || steps.semVersie.outputs.prerelease == 'true' }}
+        if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.TAG_PUSH_PAT }}
         run: |
