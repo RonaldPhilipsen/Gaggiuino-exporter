@@ -48,17 +48,16 @@ jobs:
             -o dist/gaggiuino-exporter
 
       - name: Tag Release
-        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
-        env:
-          GH_TOKEN: ${{ github.token }}
+        if: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true) || steps.semVersie.outputs.prerelease == 'true' }}
         run: |
           git tag ${{ steps.semVersie.outputs.tag }}
+          git remote set-url origin https://git:${{ secrets.TAG_PUSH_PAT }}@github.com/${{ github.repository }}
           git push origin ${{ steps.semVersie.outputs.tag }}
 
       - name: Create Release
-        if: ${{ steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true }}
+        if: ${{ (steps.semVersie.outputs.release == 'true' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true) || steps.semVersie.outputs.prerelease == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.TAG_PUSH_PAT }}
         run: |
           gh release create ${{ steps.semVersie.outputs.tag }} \
             --title '${{ steps.semVersie.outputs.tag }}' \
