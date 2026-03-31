@@ -25,13 +25,13 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go 1.25.8
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: 1.26.1
 
       - name: Calculate version
         id: semVersie
-        uses: RonaldPhilipsen/semVersie@v2.3.0
+        uses: RonaldPhilipsen/semVersie@6b2637ccea992b18ac5046581288b05b4b1869d3 # v2.3.0
         with:
           add-pr-label: true
 
