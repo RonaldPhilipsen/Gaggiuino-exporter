@@ -77,7 +77,7 @@ func GetBaseUrl() string {
 	We strip any authentication info from the URL, as we don't want to log it.
 	*/
 
-	var baseURL = os.Getenv("Gaggiuino_BASE_URL")
+	var baseURL = os.Getenv("GAGGIUINO_BASE_URL")
 	//
 	if baseURL != "" {
 		u, err := url.Parse(baseURL)
