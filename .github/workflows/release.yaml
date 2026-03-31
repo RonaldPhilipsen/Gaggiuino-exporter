@@ -36,7 +36,7 @@ jobs:
           GOOS: linux
         run: |
           go build \
-            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA'" \
             -o dist/gaggiuino-exporter
 
       - name: Tag Release
