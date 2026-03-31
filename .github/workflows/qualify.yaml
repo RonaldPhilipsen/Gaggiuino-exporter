@@ -1,15 +1,7 @@
-name: Pull Request
+name: Qualify
 
 on:
-  pull_request:
-    types:
-      - opened
-      - edited
-      - labeled
-      - unlabeled
-      - synchronize
-    branches:
-      - main
+  push:
 permissions: {}
 
 jobs:
