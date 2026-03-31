@@ -11,7 +11,9 @@ COPY . ./
 ARG VERSION=v0.0.0 \
     GIT_SHA=unknown
 
-ENV LDFLAGS="-s -w -extldflags '-static' \
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    LDFLAGS="-s -w -extldflags '-static' \
             -X '$(PACKAGE)/build.BuildVersion=$(VERSION)' \
             -X '$(PACKAGE)/build.BuildCommitSha=$(GIT_SHA)' \
             -X '$(PACKAGE)/build.BuildDate=$(shell LC_ALL=en_US.UTF-8 date)'"
@@ -24,10 +26,10 @@ FROM build-stage AS run-test-stage
 RUN go test -v ./...
 
 # Deploy the application binary into a lean image
-FROM gcr.io/distroless/base-debian11@sha256:ac69aa622ea5dcbca0803ca877d47d069f51bd4282d5c96977e0390d7d256455 AS build-release-stage
-LABEL org.opencontainers.image.source=https://github.com/RonaldPhilipsen/gaggiuino-exporter \
-      org.opencontainers.image.description="Gaggiuino Prometheus Exporter" \
-      org.opencontainers.image.licenses=MIT
+FROM gcr.io/distroless/static-debian11 AS build-release-stage
+LABEL org.opencontainers.image.source=https://github.com/RonaldPhilipsen/gaggiuino-exporter 
+LABEL org.opencontainers.image.description="Gaggiuino Prometheus Exporter" 
+LABEL org.opencontainers.image.licenses=MIT
 
 WORKDIR /
 

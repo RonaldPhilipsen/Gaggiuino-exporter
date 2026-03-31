@@ -32,6 +32,8 @@ jobs:
         env:
           VERSION: ${{ steps.semVersie.outputs.tag }}
           GIT_SHA: ${{ github.sha }}
+          CGO_ENABLED: 0
+          GOOS: linux
         run: |
           go build \
             -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
