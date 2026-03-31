@@ -31,7 +31,7 @@ jobs:
 
       - name: Calculate version
         id: semVersie
-        uses: RonaldPhilipsen/semVersie@v2.2.0
+        uses: RonaldPhilipsen/semVersie@v2.3.0
         with:
           add-pr-label: true
 
