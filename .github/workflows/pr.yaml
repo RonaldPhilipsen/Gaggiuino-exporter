@@ -42,7 +42,8 @@ jobs:
         env:
           VERSION: ${{ steps.semVersie.outputs.tag }}
           GIT_SHA: ${{ github.sha }}
+          PACKAGE: github.com/RonaldPhilipsen/gaggiuino-exporter
         run: |
           go build \
-            -ldflags="-s -w -extldflags '-static' -X 'main.BuildVersion=$VERSION' -X 'main.BuildCommitSha=$GIT_SHA' -X 'main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+            -ldflags="-s -w -extldflags '-static' -X '$PACKAGE/build.BuildVersion=$VERSION' -X '$PACKAGE/build.BuildCommitSha=$GIT_SHA' -X '$PACKAGE/build.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
             -o dist/gaggiuino-exporter
