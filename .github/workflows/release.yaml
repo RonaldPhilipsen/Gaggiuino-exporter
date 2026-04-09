@@ -25,7 +25,7 @@ jobs:
 
       - name: Calculate version
         id: semVersie
-        uses: RonaldPhilipsen/semVersie@1a62a41664cd24926fa998c29376c82796c30905 # v2.3.1
+        uses: RonaldPhilipsen/semVersie@5e6e0f14dc4541ab5e740211db817961d9741b8d # v2.3.2
 
       - name: Install dependencies
         run: go get .
