@@ -1,11 +1,13 @@
 package gaggiuino
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGetLastShot(t *testing.T) {
@@ -66,7 +68,7 @@ func TestGetLastShot(t *testing.T) {
 			}))
 			defer server.Close()
 
-			id, err := GetLastShot(server.URL)
+			id, err := GetLastShotWithContext(context.Background(), server.URL)
 
 			if tt.expectedErrMsg == "" {
 				if err != nil {
@@ -104,7 +106,7 @@ func TestGetState(t *testing.T) {
 			responseBody: `[{"upTime": "67", "profileId": "10", "profileName": "[UT] Boiler Off (community)", "targetTemperature": "1.000000", "temperature": "23.501986", "pressure": "0.168047", "waterLevel": "29", "weight": "1.100000", "brewSwitchState": false, "steamSwitchState": false}]`,
 			expectedStatus: status{
 				Uptime:            67,
-				ProfileId:         10,
+				ProfileID:         10,
 				ProfileName:       "[UT] Boiler Off (community)",
 				TargetTemperature: 1.0,
 				Temperature:       23.501986,
@@ -143,7 +145,7 @@ func TestGetState(t *testing.T) {
 			}))
 			defer server.Close()
 
-			st, err := GetState(server.URL)
+			st, err := GetStateWithContext(context.Background(), server.URL)
 
 			if tt.expectedErrMsg == "" {
 				if err != nil {
@@ -221,7 +223,7 @@ func TestGetShot(t *testing.T) {
 			}))
 			defer server.Close()
 
-			shot, err := GetShot(server.URL, tt.shotID)
+			shot, err := GetShotWithContext(context.Background(), server.URL, tt.shotID)
 
 			if tt.expectedErrMsg == "" {
 				if err != nil {
@@ -246,5 +248,31 @@ func TestGetShot(t *testing.T) {
 				t.Fatalf("expected nil shot on error, got %+v", shot)
 			}
 		})
+	}
+}
+
+func TestGetHTTPTimeoutFromEnv(t *testing.T) {
+	t.Setenv(httpTimeoutEnvVar, "3s")
+	if got := getHTTPTimeout(); got != 3*time.Second {
+		t.Fatalf("expected 3s timeout, got %s", got)
+	}
+}
+
+func TestGetHTTPTimeoutFromEnvSupportsFractionalSeconds(t *testing.T) {
+	t.Setenv(httpTimeoutEnvVar, "1.5s")
+	if got := getHTTPTimeout(); got != 1500*time.Millisecond {
+		t.Fatalf("expected 1.5s timeout, got %s", got)
+	}
+
+	t.Setenv(httpTimeoutEnvVar, "0.25s")
+	if got := getHTTPTimeout(); got != 250*time.Millisecond {
+		t.Fatalf("expected 250ms timeout, got %s", got)
+	}
+}
+
+func TestGetHTTPTimeoutFromEnvFallsBackOnInvalid(t *testing.T) {
+	t.Setenv(httpTimeoutEnvVar, "invalid")
+	if got := getHTTPTimeout(); got != defaultHTTPTimeout {
+		t.Fatalf("expected default timeout %s, got %s", defaultHTTPTimeout, got)
 	}
 }
