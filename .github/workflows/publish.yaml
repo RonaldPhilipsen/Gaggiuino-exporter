@@ -1,12 +1,15 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      - "v*"
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to publish (for example v1.1.0)
+        required: true
+        type: string
 permissions: {}
 
 env:
@@ -16,16 +19,55 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: publish-${{ github.repository }}-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+      cancel-in-progress: false
     permissions:
-      contents: write # Required for pushing the release and tag to the repository
-      attestations: write # Required for pushing the SBOM and provenance to GitHub Container Registry
-      id-token: write # Required for pushing the SBOM and provenance to GitHub Container Registry
+      contents: read # Required for repository checkout
+      attestations: write # Required for artifact attestations
+      id-token: write # Required for artifact attestations
       packages: write # Required for pushing the Docker image to GitHub Packages
 
     steps:
+      - name: Resolve target tag
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          EVENT_RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=$INPUT_RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "release" ]; then
+            echo "tag=$EVENT_RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported event: $EVENT_NAME"
+            exit 1
+          fi
+
+      - name: Validate release tag input
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          TARGET_TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          if ! printf '%s\n' "$TARGET_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'; then
+            echo "Invalid release_tag: '$TARGET_TAG'. Expected a semver-like tag such as v1.2.3 or v1.2.3-rc.1."
+            exit 1
+          fi
+
+      - name: Verify release exists
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          gh release view "$TARGET_TAG" --repo "${{ github.repository }}" >/dev/null
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
+          ref: ${{ steps.target.outputs.tag }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
@@ -42,6 +84,8 @@ jobs:
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.target.outputs.tag }}
 
       - name: Build and push Docker image
         id: push
@@ -52,7 +96,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
+            VERSION=${{ steps.target.outputs.tag }}
             GIT_SHA=${{ github.sha }}
 
       - name: Generate artifact attestation

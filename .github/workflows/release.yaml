@@ -8,8 +8,32 @@ on:
 permissions: {}
 
 jobs:
-  release:
+  version:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.semVersie.outputs.tag }}
+      release: ${{ steps.semVersie.outputs.release }}
+      prerelease: ${{ steps.semVersie.outputs.prerelease }}
+      release_notes: ${{ steps.semVersie.outputs.release-notes }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Calculate version
+        id: semVersie
+        uses: RonaldPhilipsen/semVersie@5e6e0f14dc4541ab5e740211db817961d9741b8d # v2.3.2
+
+  release:
+    if: ${{ needs.version.outputs.release == 'true' || needs.version.outputs.prerelease == 'true' }}
+    needs:
+      - version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.version.outputs.prerelease == 'true' && 'dev' || 'prod' }}
     permissions:
       contents: write
     steps:
@@ -23,16 +47,12 @@ jobs:
         with:
           go-version: 1.26.3
 
-      - name: Calculate version
-        id: semVersie
-        uses: RonaldPhilipsen/semVersie@5e6e0f14dc4541ab5e740211db817961d9741b8d # v2.3.2
-
       - name: Install dependencies
         run: go get .
 
       - name: Build
         env:
-          VERSION: ${{ steps.semVersie.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.tag }}
           GIT_SHA: ${{ github.sha }}
           CGO_ENABLED: 0
           GOOS: linux
@@ -42,22 +62,20 @@ jobs:
             -o dist/gaggiuino-exporter
 
       - name: Tag Release
-        if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
         env:
-          TAG: ${{ steps.semVersie.outputs.tag }}
-          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.TAG_PUSH_PAT }}
         run: |
           git tag "$TAG"
           git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}
           git push origin "$TAG"
 
       - name: Create Release
-        if: ${{ steps.semVersie.outputs.release == 'true' || steps.semVersie.outputs.prerelease == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.semVersie.outputs.tag }}
-          RELEASE_NOTES: ${{ steps.semVersie.outputs.release-notes }}
-          PRERELEASE: ${{ steps.semVersie.outputs.prerelease }}
+          GH_TOKEN: ${{ secrets.TAG_PUSH_PAT }}
+          TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_NOTES: ${{ needs.version.outputs.release_notes }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
           if [ "$PRERELEASE" = 'true' ]; then
             gh release create "$TAG" --title "$TAG" --notes "$RELEASE_NOTES" --prerelease dist/gaggiuino-exporter
