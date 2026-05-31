@@ -2,7 +2,7 @@ module github.com/RonaldPhilipsen/gaggiuino-exporter
 
 go 1.25.8
 
-toolchain go1.26.2
+toolchain go1.26.3
 
 require (
 	github.com/prometheus/client_golang v1.23.2
