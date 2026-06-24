@@ -1,5 +1,5 @@
 # Build the application from source
-FROM golang:1.26@sha256:792443b89f65105abba56b9bd5e97f680a80074ac62fc844a584212f8c8102c3 AS build-stage
+FROM golang:1.26@sha256:478231bfd9677835606c249208483a3c43b31e941c1040c48747b111c7ab871c AS build-stage
 
 WORKDIR /app
 
