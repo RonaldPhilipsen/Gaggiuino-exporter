@@ -139,6 +139,10 @@ func (e *Exporter) authorizeReq(w http.ResponseWriter, req *http.Request) bool {
 
 // RunServer starts HTTP server loop.
 func (e *Exporter) RunServer(addr string) {
+	if e.otlp != nil {
+		go e.runOTLPPolling()
+	}
+
 	http.Handle("/", http.HandlerFunc(ServeIndex))
 	http.Handle("/metrics", e)
 

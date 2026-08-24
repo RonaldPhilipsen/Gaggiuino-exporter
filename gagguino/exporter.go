@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -41,6 +42,30 @@ func NewExporter(baseURL string, basicAuth map[string]string, otlpOptions OTLPOp
 	}
 
 	return e
+}
+
+func (e *Exporter) runOTLPPolling() {
+	interval := e.otlpOptions.Interval
+	if interval <= 0 {
+		interval = 1 * time.Second
+	}
+
+	if err := e.updateMachineMetrics(); err != nil {
+		e.handleStateTransition(err, "otlp-polling")
+	} else {
+		e.handleStateTransition(nil, "otlp-polling")
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := e.updateMachineMetrics(); err != nil {
+			e.handleStateTransition(err, "otlp-polling")
+			continue
+		}
+		e.handleStateTransition(nil, "otlp-polling")
+	}
 }
 
 // Exporter is the type to be used to start HTTP server and run the analysis
