@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -81,7 +80,7 @@ func getHTTPTimeout() time.Duration {
 
 	timeout, err := time.ParseDuration(raw)
 	if err != nil || timeout <= 0 {
-		log.Printf("Invalid %s=%q, using default %s", httpTimeoutEnvVar, raw, defaultHTTPTimeout)
+		Logger.Warn("invalid http timeout, using default", "env", httpTimeoutEnvVar, "value", raw, "default", defaultHTTPTimeout)
 		return defaultHTTPTimeout
 	}
 
@@ -93,6 +92,7 @@ func newHTTPClient() *http.Client {
 }
 
 func doRequest(ctx context.Context, path string) ([]byte, int, error) {
+	Logger.Debug("http request", "path", path)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, 0, err
@@ -100,6 +100,7 @@ func doRequest(ctx context.Context, path string) ([]byte, int, error) {
 
 	resp, err := newHTTPClient().Do(req)
 	if err != nil {
+		Logger.Debug("http request failed", "path", path, "error", err)
 		return nil, 0, err
 	}
 	defer resp.Body.Close()
@@ -109,6 +110,7 @@ func doRequest(ctx context.Context, path string) ([]byte, int, error) {
 		return nil, resp.StatusCode, err
 	}
 
+	Logger.Debug("http response", "path", path, "status", resp.StatusCode, "bytes", len(body))
 	return body, resp.StatusCode, nil
 }
 
@@ -126,6 +128,7 @@ func GetStateWithContext(ctx context.Context, baseURL string) (status, error) {
 	var arr []status
 	if err := json.Unmarshal(body, &arr); err == nil {
 		if len(arr) > 0 {
+			Logger.Debug("parsed status", "status", arr[0])
 			return arr[0], nil
 		}
 		return status{}, fmt.Errorf("failed to parse status: empty array")
@@ -155,6 +158,7 @@ func GetLastShotWithContext(ctx context.Context, baseURL string) (int, error) {
 		if len(responseData) == 0 {
 			return -1, fmt.Errorf("failed to parse last shot ID: empty response")
 		}
+		Logger.Debug("parsed last shot id", "id", responseData[0].LastShotID)
 		return responseData[0].LastShotID, nil
 	}
 
@@ -178,5 +182,6 @@ func GetShotWithContext(ctx context.Context, baseURL string, shotID int) (*LastS
 		return nil, fmt.Errorf("failed to parse getLastShot response: %w", err)
 	}
 
+	Logger.Debug("parsed shot", "id", lastShot.ID, "duration", lastShot.Duration, "datapoints", len(lastShot.Datapoints.TimeInShot))
 	return &lastShot, nil
 }

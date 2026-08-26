@@ -2,7 +2,6 @@ package gaggiuino
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -34,11 +33,11 @@ func NewExporter(baseURL string, basicAuth map[string]string, otlpOptions OTLPOp
 	if e.otlpOptions.Enabled {
 		otlp, err := newOTLPMetrics(e.otlpOptions)
 		if err != nil {
-			log.Printf("failed to initialize OTLP metrics exporter: %v", err)
+			Logger.Error("failed to initialize OTLP metrics exporter", "error", err)
 		} else {
 			e.otlp = otlp
 			e.backends = append(e.backends, &otlpBackend{otlp: otlp})
-			log.Printf("OTLP metrics export enabled: endpoint=%s interval=%s", e.otlpOptions.Endpoint, e.otlpOptions.Interval)
+			Logger.Info("OTLP metrics export enabled", "endpoint", e.otlpOptions.Endpoint, "interval", e.otlpOptions.Interval)
 		}
 	}
 
@@ -50,6 +49,7 @@ func (e *Exporter) runOTLPPolling() {
 	if interval <= 0 {
 		interval = 1 * time.Second
 	}
+	Logger.Debug("starting otlp polling loop", "interval", interval)
 
 	if err := e.updateMachineMetrics(); err != nil {
 		e.handleStateTransition(err, "otlp-polling")
@@ -87,9 +87,11 @@ type Exporter struct {
 func (e *Exporter) updateMachineMetrics() error {
 	if e.ws != nil && e.ws.isConnected() {
 		if st, ok := e.ws.snapshot(); ok {
+			Logger.Debug("publishing state", "source", "websocket", "state", st)
 			e.publishState(backendState{Up: 1, Status: &st})
 			return nil
 		}
+		Logger.Debug("websocket connected but no state received yet, falling back to REST")
 	}
 
 	ctx := context.Background()
@@ -97,12 +99,13 @@ func (e *Exporter) updateMachineMetrics() error {
 	if err != nil {
 		return err
 	}
+	Logger.Debug("publishing state", "source", "rest", "state", state)
 
 	var lastShotIDPtr *int64
 
 	lastShotID, err := GetLastShotWithContext(ctx, e.baseURL)
 	if err != nil {
-		log.Printf("failed to get last shot from %s: %v", e.baseURL, err)
+		Logger.Warn("failed to get last shot", "baseURL", e.baseURL, "error", err)
 	} else {
 		id := int64(lastShotID)
 		lastShotIDPtr = &id
@@ -146,10 +149,12 @@ func (e *Exporter) handleStateTransition(err error, source string) {
 	if err != nil {
 		if e.logOnStateChange(false) {
 			if source == "" {
-				log.Printf("failed to get state from %s: %v", e.baseURL, err)
+				Logger.Error("failed to get state", "baseURL", e.baseURL, "error", err)
 			} else {
-				log.Printf("failed to get state from %s (%s): %v", e.baseURL, source, err)
+				Logger.Error("failed to get state", "baseURL", e.baseURL, "source", source, "error", err)
 			}
+		} else {
+			Logger.Debug("still failing to get state", "baseURL", e.baseURL, "source", source, "error", err)
 		}
 		e.publishState(backendState{Up: 0})
 		return
@@ -157,9 +162,9 @@ func (e *Exporter) handleStateTransition(err error, source string) {
 
 	if e.logOnStateChange(true) {
 		if source == "" {
-			log.Printf("recovered connectivity to %s", e.baseURL)
+			Logger.Info("recovered connectivity", "baseURL", e.baseURL)
 		} else {
-			log.Printf("recovered connectivity to %s (%s)", e.baseURL, source)
+			Logger.Info("recovered connectivity", "baseURL", e.baseURL, "source", source)
 		}
 	}
 }

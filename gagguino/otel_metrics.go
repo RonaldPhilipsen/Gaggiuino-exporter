@@ -47,6 +47,7 @@ func (b *otlpBackend) Record(state backendState) {
 	ctx := context.Background()
 	b.otlp.up.Record(ctx, state.Up)
 	if state.Up <= 0 || state.Status == nil {
+		Logger.Debug("otlp record", "up", state.Up)
 		return
 	}
 
@@ -61,6 +62,7 @@ func (b *otlpBackend) Record(state backendState) {
 	if state.LastShotID != nil {
 		b.otlp.lastShotID.Record(ctx, *state.LastShotID)
 	}
+	Logger.Debug("otlp record", "up", state.Up, "status", state.Status, "lastShotID", state.LastShotID)
 }
 
 func newOTLPMetrics(opts OTLPOptions) (*otlpMetrics, error) {
@@ -68,6 +70,7 @@ func newOTLPMetrics(opts OTLPOptions) (*otlpMetrics, error) {
 	if err != nil {
 		return nil, err
 	}
+	Logger.Debug("otlp config", "endpoint", endpointURL, "interval", opts.Interval, "timeout", opts.Timeout, "headers", len(opts.Headers))
 
 	u, err := url.Parse(endpointURL)
 	if err != nil {

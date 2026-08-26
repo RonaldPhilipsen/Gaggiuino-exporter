@@ -3,8 +3,8 @@ package gaggiuino
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/bcrypt"
@@ -87,6 +87,7 @@ type prometheusBackend struct{}
 func (p *prometheusBackend) Record(state backendState) {
 	gaggiuinoUp.Set(state.Up)
 	if state.Up <= 0 || state.Status == nil {
+		Logger.Debug("prometheus record", "up", state.Up)
 		return
 	}
 
@@ -101,10 +102,12 @@ func (p *prometheusBackend) Record(state backendState) {
 	if state.LastShotID != nil {
 		gaggiuinoLastShotID.Set(float64(*state.LastShotID))
 	}
+	Logger.Debug("prometheus record", "up", state.Up, "status", state.Status, "lastShotID", state.LastShotID)
 }
 
 // ServeHTTP handles Prometheus scrape requests at /metrics.
 func (e *Exporter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	Logger.Debug("scrape request", "remoteAddr", req.RemoteAddr)
 	if len(e.basicAuth) > 0 {
 		if ok := e.authorizeReq(w, req); !ok {
 			return
@@ -133,6 +136,7 @@ func (e *Exporter) authorizeReq(w http.ResponseWriter, req *http.Request) bool {
 		}
 	}
 
+	Logger.Debug("unauthorized scrape request", "remoteAddr", req.RemoteAddr, "user", user)
 	w.Header().Add("WWW-Authenticate", "Basic realm=\"Access to Gaggiuino exporter\"")
 	w.WriteHeader(http.StatusUnauthorized)
 	return false
@@ -151,10 +155,11 @@ func (e *Exporter) RunServer(addr string) {
 	http.Handle("/", http.HandlerFunc(ServeIndex))
 	http.Handle("/metrics", e)
 
-	log.Printf("Providing metrics at http://%s/metrics", addr)
+	Logger.Info("providing metrics", "addr", addr)
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe:", err)
+		Logger.Error("ListenAndServe failed", "error", err)
+		os.Exit(1)
 	}
 }
 

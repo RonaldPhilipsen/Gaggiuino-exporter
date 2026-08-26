@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"runtime"
@@ -30,10 +29,17 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		printHeader()
 
+		gaggiuino.SetDebug(viper.GetBool("debug"))
+
 		baseURL, err := getBaseURL()
 		if err != nil {
 			return err
 		}
+		gaggiuino.Logger.Debug("resolved config",
+			"mode", viper.GetString("mode"),
+			"bind-address", viper.GetString("bind-address"),
+			"basic-auth-users", len(viper.GetStringMapString("basic-auth-users")),
+		)
 		ctx := context.Background()
 
 		if viper.GetString("mode") == "state" {
@@ -49,7 +55,7 @@ var rootCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("marshal state: %w", err)
 			}
-			log.Printf("current state: %s, last shot ID: %d", string(stateJSON), lastShotID)
+			gaggiuino.Logger.Info("current state", "state", string(stateJSON), "lastShotID", lastShotID)
 			return nil
 		}
 		// TODO: Log all shots to Postgres
@@ -79,6 +85,7 @@ func init() {
 	flags.StringP("mode", "m", "http", "Expose method - either 'state' or 'http'")
 	flags.StringP("bind-address", "b", "0.0.0.0:9995", "Address to bind to")
 	flags.StringToString("basic-auth-users", map[string]string{}, "Basic Auth users and their passwords as bcrypt hashes")
+	flags.Bool("debug", false, "Enable verbose debug logging (websocket messages, polling, decoded fields)")
 
 	flags.Bool("otlp-enabled", false, "Enable OpenTelemetry OTLP metrics export")
 	flags.String("otlp-endpoint", "http://localhost:8429/opentelemetry/v1/metrics", "OTLP HTTP endpoint")
@@ -88,11 +95,13 @@ func init() {
 
 	err := viper.BindPFlags(flags)
 	if err != nil {
-		log.Fatalf("Error binding flags: %v", err)
+		gaggiuino.Logger.Error("error binding flags", "error", err)
+		os.Exit(1)
 	}
 
 	bindEnvOrDie("mode", "MODE")
 	bindEnvOrDie("bind-address", "BIND_ADDRESS")
+	bindEnvOrDie("debug", "DEBUG")
 	bindEnvOrDie("otlp-enabled", "OTLP_ENABLED")
 	bindEnvOrDie("otlp-endpoint", "OTLP_ENDPOINT")
 	bindEnvOrDie("otlp-interval", "OTLP_INTERVAL")
@@ -109,13 +118,15 @@ func initConfig() {
 func bindEnvOrDie(key string, env ...string) {
 	args := append([]string{key}, env...)
 	if err := viper.BindEnv(args...); err != nil {
-		log.Fatalf("Error binding env for key %q: %v", key, err)
+		gaggiuino.Logger.Error("error binding env", "key", key, "error", err)
+		os.Exit(1)
 	}
 }
 
 func getOTLPHeaders() map[string]string {
 	headers := viper.GetStringMapString("otlp-headers")
 	if len(headers) > 0 {
+		gaggiuino.Logger.Debug("otlp headers from structured config", "count", len(headers))
 		return headers
 	}
 
@@ -126,10 +137,11 @@ func getOTLPHeaders() map[string]string {
 
 	headers, err := parseOTLPHeaders(raw)
 	if err != nil {
-		log.Printf("invalid OTLP headers format: %v", err)
+		gaggiuino.Logger.Warn("invalid otlp headers format", "error", err)
 		return map[string]string{}
 	}
 
+	gaggiuino.Logger.Debug("otlp headers parsed from string", "count", len(headers))
 	return headers
 }
 
@@ -169,7 +181,7 @@ func parseOTLPHeaders(raw string) (map[string]string, error) {
 func getBaseURL() (string, error) {
 	rawBaseURL := os.Getenv("GAGGIUINO_BASE_URL")
 	if rawBaseURL == "" {
-		log.Printf("Using default base URL: %s", defaultBaseURL)
+		gaggiuino.Logger.Info("using default base URL", "baseURL", defaultBaseURL)
 		return defaultBaseURL, nil
 	}
 
@@ -178,17 +190,17 @@ func getBaseURL() (string, error) {
 		return "", fmt.Errorf("invalid GAGGIUINO_BASE_URL %q", rawBaseURL)
 	}
 
-	log.Printf("Using base URL from env %s:%s", parsedURL.Scheme, parsedURL.Host)
+	gaggiuino.Logger.Info("using base URL from env", "scheme", parsedURL.Scheme, "host", parsedURL.Host)
 	return parsedURL.String(), nil
 }
 
 func printHeader() {
-	log.Printf("gaggiuino-exporter %s	sha1: %s	Go: %s	GOOS: %s	GOARCH: %s",
-		build.BuildVersion,
-		build.BuildCommitSha,
-		runtime.Version(),
-		runtime.GOOS,
-		runtime.GOARCH,
+	gaggiuino.Logger.Info("gaggiuino-exporter",
+		"version", build.BuildVersion,
+		"sha1", build.BuildCommitSha,
+		"go", runtime.Version(),
+		"goos", runtime.GOOS,
+		"goarch", runtime.GOARCH,
 	)
 }
 
