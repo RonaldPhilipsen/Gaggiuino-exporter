@@ -28,6 +28,7 @@ func NewExporter(baseURL string, basicAuth map[string]string, otlpOptions OTLPOp
 		handler:     promhttp.Handler(),
 		backends:    []metricsBackend{&prometheusBackend{}},
 		lastUpState: -1,
+		ws:          newWSClient(baseURL),
 	}
 
 	if e.otlpOptions.Enabled {
@@ -77,9 +78,20 @@ type Exporter struct {
 	otlp        *otlpMetrics
 	backends    []metricsBackend
 	lastUpState int32
+	ws          *wsClient
 }
 
+// updateMachineMetrics refreshes and publishes the current machine state. It
+// prefers the live WebSocket state when connected, falling back to scraping
+// the REST API otherwise.
 func (e *Exporter) updateMachineMetrics() error {
+	if e.ws != nil && e.ws.isConnected() {
+		if st, ok := e.ws.snapshot(); ok {
+			e.publishState(backendState{Up: 1, Status: &st})
+			return nil
+		}
+	}
+
 	ctx := context.Background()
 	state, err := GetStateWithContext(ctx, e.baseURL)
 	if err != nil {
