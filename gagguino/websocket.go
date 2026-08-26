@@ -3,7 +3,6 @@ package gaggiuino
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"net/url"
 	"strings"
@@ -79,7 +78,9 @@ func (c *wsClient) update(fn func(*status)) {
 	c.mu.Lock()
 	fn(&c.state)
 	c.haveState = true
+	state := c.state
 	c.mu.Unlock()
+	Logger.Debug("state updated", "state", state)
 }
 
 // run keeps trying to (re)connect to the WebSocket endpoint, with backoff
@@ -88,7 +89,7 @@ func (c *wsClient) update(fn func(*status)) {
 func (c *wsClient) run(ctx context.Context) {
 	target, err := wsURL(c.baseURL)
 	if err != nil {
-		log.Printf("invalid websocket URL for %s, disabling websocket: %v", c.baseURL, err)
+		Logger.Error("invalid websocket URL, disabling websocket", "baseURL", c.baseURL, "error", err)
 		return
 	}
 
@@ -99,7 +100,7 @@ func (c *wsClient) run(ctx context.Context) {
 		}
 
 		if err := c.runOnce(ctx, target); err != nil {
-			log.Printf("websocket connection to %s failed, falling back to HTTP polling: %v", target, err)
+			Logger.Debug("websocket connection failed, falling back to HTTP polling", "target", target, "error", err)
 		}
 		c.setConnected(false)
 
@@ -120,17 +121,19 @@ func (c *wsClient) run(ctx context.Context) {
 // connection fails or ctx is cancelled. A non-nil error, including a failed
 // upgrade (e.g. non-101 response), signals the caller to keep polling REST instead.
 func (c *wsClient) runOnce(ctx context.Context, target string) error {
+	Logger.Debug("dialing websocket", "target", target)
 	dialer := websocket.Dialer{HandshakeTimeout: wsHandshakeTimeout}
 	conn, resp, err := dialer.DialContext(ctx, target, nil)
 	if err != nil {
 		if resp != nil {
+			Logger.Debug("websocket dial got non-101 response", "target", target, "status", resp.Status)
 			resp.Body.Close()
 		}
 		return fmt.Errorf("dial/upgrade failed: %w", err)
 	}
 	defer conn.Close()
 
-	log.Printf("websocket connection established to %s", target)
+	Logger.Debug("websocket connection established", "target", target)
 	c.setConnected(true)
 
 	for {
@@ -143,14 +146,17 @@ func (c *wsClient) runOnce(ctx context.Context, target string) error {
 			return err
 		}
 		if msgType != websocket.BinaryMessage {
+			Logger.Debug("ignoring non-binary websocket message", "type", msgType)
 			continue
 		}
 
 		action, payload, err := decodeEnvelope(data)
 		if err != nil {
+			Logger.Debug("failed to decode websocket envelope", "bytes", len(data), "error", err)
 			continue
 		}
 
+		Logger.Debug("received websocket message", "action", action, "bytes", len(payload))
 		c.handleMessage(action, payload)
 	}
 }
@@ -163,6 +169,8 @@ func (c *wsClient) handleMessage(action string, payload []byte) {
 		c.applySystemState(payload)
 	case "d_act_prof":
 		c.applyActiveProfile(payload)
+	default:
+		Logger.Debug("unhandled websocket action", "action", action)
 	}
 }
 
