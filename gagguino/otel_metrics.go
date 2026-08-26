@@ -118,39 +118,39 @@ func newOTLPMetrics(opts OTLPOptions) (*otlpMetrics, error) {
 	)
 	meter := provider.Meter("github.com/RonaldPhilipsen/gaggiuino-exporter")
 
-	up, err := meter.Float64Gauge("gaggiuino.up")
+	up, err := meter.Float64Gauge("gaggiuino_up")
 	if err != nil {
 		return nil, err
 	}
-	uptimeSeconds, err := meter.Float64Gauge("gaggiuino.uptime.seconds")
+	uptimeSeconds, err := meter.Float64Gauge("gaggiuino_uptime_seconds")
 	if err != nil {
 		return nil, err
 	}
-	profileID, err := meter.Float64Gauge("gaggiuino.profile.id")
+	profileID, err := meter.Float64Gauge("gaggiuino_profile_id")
 	if err != nil {
 		return nil, err
 	}
-	targetTemperature, err := meter.Float64Gauge("gaggiuino.target.temperature")
+	targetTemperature, err := meter.Float64Gauge("gaggiuino_target_temperature")
 	if err != nil {
 		return nil, err
 	}
-	temperature, err := meter.Float64Gauge("gaggiuino.temperature")
+	temperature, err := meter.Float64Gauge("gaggiuino_temperature")
 	if err != nil {
 		return nil, err
 	}
-	pressureBar, err := meter.Float64Gauge("gaggiuino.pressure.bar")
+	pressureBar, err := meter.Float64Gauge("gaggiuino_pressure_bar")
 	if err != nil {
 		return nil, err
 	}
-	waterLevel, err := meter.Float64Gauge("gaggiuino.water.level")
+	waterLevel, err := meter.Float64Gauge("gaggiuino_water_level")
 	if err != nil {
 		return nil, err
 	}
-	shotWeight, err := meter.Float64Gauge("gaggiuino.shot.weight")
+	shotWeight, err := meter.Float64Gauge("gaggiuino_shot_weight")
 	if err != nil {
 		return nil, err
 	}
-	lastShotID, err := meter.Int64Gauge("gaggiuino.last_shot_id")
+	lastShotID, err := meter.Int64Gauge("gaggiuino_last_shot_id")
 	if err != nil {
 		return nil, err
 	}

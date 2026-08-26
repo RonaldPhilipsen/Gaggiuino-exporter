@@ -1,6 +1,7 @@
 package gaggiuino
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -141,6 +142,10 @@ func (e *Exporter) authorizeReq(w http.ResponseWriter, req *http.Request) bool {
 func (e *Exporter) RunServer(addr string) {
 	if e.otlp != nil {
 		go e.runOTLPPolling()
+	}
+
+	if e.ws != nil {
+		go e.ws.run(context.Background())
 	}
 
 	http.Handle("/", http.HandlerFunc(ServeIndex))

@@ -5,6 +5,7 @@ go 1.25.8
 toolchain go1.27.0
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/cobra v1.10.2
 	go.opentelemetry.io/otel v1.46.0
@@ -51,5 +52,5 @@ require (
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.55.0
 	golang.org/x/sys v0.47.0 // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
+	google.golang.org/protobuf v1.36.12
 )
