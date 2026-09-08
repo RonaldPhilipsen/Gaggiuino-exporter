@@ -34,7 +34,7 @@ You can configure runtime behavior via environment variables:
 
 - `OTLP_ENABLED` (default: `false`)
 - `OTLP_ENDPOINT` (default: `http://localhost:8429/opentelemetry/v1/metrics`)
-- `OTLP_MODE` (default: `websocket`, either `websocket` or `interval`)
+- `OTLP_MODE` (default: `immediate`, either `immediate` or `interval`)
 - `OTLP_INTERVAL` (default: `15s`, only used when `OTLP_MODE=interval`)
 - `OTLP_TIMEOUT` (default: `10s`)
 - `OTLP_HEADERS` (optional headers, supports JSON map or key=value CSV)
@@ -46,7 +46,7 @@ Accepted `OTLP_HEADERS` formats:
 
 `OTLP_MODE` controls how metrics are published:
 
-- `websocket` (default): metrics are published as soon as new state arrives over the Gaggiuino WebSocket connection.
+- `immediate` (default): metrics are published as soon as new state arrives over the Gaggiuino WebSocket connection.
 - `interval`: metrics are polled and published on a fixed ticker (`OTLP_INTERVAL`), falling back to the REST API when the WebSocket is unavailable.
 
 Example:
