@@ -142,15 +142,9 @@ func (e *Exporter) authorizeReq(w http.ResponseWriter, req *http.Request) bool {
 	return false
 }
 
-// RunServer starts HTTP server loop.
+// RunServer starts background metric collection and the HTTP server loop.
 func (e *Exporter) RunServer(addr string) {
-	if e.otlp != nil {
-		go e.runOTLPPolling()
-	}
-
-	if e.ws != nil {
-		go e.ws.run(context.Background())
-	}
+	e.Start(context.Background())
 
 	http.Handle("/", http.HandlerFunc(ServeIndex))
 	http.Handle("/metrics", e)

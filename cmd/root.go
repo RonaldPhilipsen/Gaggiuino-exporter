@@ -66,6 +66,7 @@ var rootCmd = &cobra.Command{
 				Interval: viper.GetDuration("otlp-interval"),
 				Timeout:  viper.GetDuration("otlp-timeout"),
 				Headers:  getOTLPHeaders(),
+				Mode:     viper.GetString("otlp-mode"),
 			},
 		}
 
@@ -92,6 +93,7 @@ func init() {
 	flags.Duration("otlp-interval", 15*time.Second, "Interval for OTLP metric export")
 	flags.Duration("otlp-timeout", 10*time.Second, "Timeout for OTLP export requests")
 	flags.StringToString("otlp-headers", map[string]string{}, "Headers for OTLP export requests")
+	flags.String("otlp-mode", gaggiuino.OTLPModeImmediate, "OTLP export mode: 'interval' polls on a ticker, 'immediate' streams metrics as new data arrives")
 
 	err := viper.BindPFlags(flags)
 	if err != nil {
@@ -107,6 +109,7 @@ func init() {
 	bindEnvOrDie("otlp-interval", "OTLP_INTERVAL")
 	bindEnvOrDie("otlp-timeout", "OTLP_TIMEOUT")
 	bindEnvOrDie("otlp-headers", "OTLP_HEADERS")
+	bindEnvOrDie("otlp-mode", "OTLP_MODE")
 }
 
 // initConfig reads in  ENV variables if set.

@@ -32,10 +32,30 @@ type wsClient struct {
 	connected bool
 	state     status
 	haveState bool
+
+	onUpdate           func(status)
+	onConnectionChange func(bool)
 }
 
 func newWSClient(baseURL string) *wsClient {
 	return &wsClient{baseURL: baseURL}
+}
+
+// onStateUpdate registers a callback invoked synchronously every time fresh
+// state arrives over the WebSocket, enabling event-driven metric publishing
+// instead of polling on a ticker.
+func (c *wsClient) onStateUpdate(fn func(status)) {
+	c.mu.Lock()
+	c.onUpdate = fn
+	c.mu.Unlock()
+}
+
+// onConnected registers a callback invoked whenever the WebSocket connection
+// state changes (true when (re)connected, false when lost).
+func (c *wsClient) onConnected(fn func(bool)) {
+	c.mu.Lock()
+	c.onConnectionChange = fn
+	c.mu.Unlock()
 }
 
 // wsURL derives the ws(s)://<host>/ws endpoint from the configured HTTP base URL.
@@ -64,7 +84,11 @@ func (c *wsClient) isConnected() bool {
 func (c *wsClient) setConnected(v bool) {
 	c.mu.Lock()
 	c.connected = v
+	fn := c.onConnectionChange
 	c.mu.Unlock()
+	if fn != nil {
+		fn(v)
+	}
 }
 
 // snapshot returns the latest state received over the WebSocket, if any has arrived yet.
@@ -79,8 +103,12 @@ func (c *wsClient) update(fn func(*status)) {
 	fn(&c.state)
 	c.haveState = true
 	state := c.state
+	onUpdate := c.onUpdate
 	c.mu.Unlock()
 	Logger.Debug("state updated", "state", state)
+	if onUpdate != nil {
+		onUpdate(state)
+	}
 }
 
 // run keeps trying to (re)connect to the WebSocket endpoint, with backoff

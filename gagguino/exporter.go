@@ -2,6 +2,7 @@ package gaggiuino
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -66,6 +67,43 @@ func (e *Exporter) runOTLPPolling() {
 			continue
 		}
 		e.handleStateTransition(nil, "otlp-polling")
+	}
+}
+
+// runOTLPStream registers callbacks on the WebSocket client so metrics are
+// published as soon as new state arrives, instead of on a fixed ticker.
+func (e *Exporter) runOTLPStream() {
+	Logger.Debug("starting otlp websocket stream mode")
+
+	e.ws.onStateUpdate(func(st status) {
+		e.handleStateTransition(nil, "otlp-stream")
+		e.publishState(backendState{Up: 1, Status: &st})
+	})
+
+	e.ws.onConnected(func(connected bool) {
+		if connected {
+			return
+		}
+		e.handleStateTransition(fmt.Errorf("websocket connection lost"), "otlp-stream")
+		e.publishState(backendState{Up: 0})
+	})
+}
+
+// Start begins background metric collection: the WebSocket connection and,
+// if enabled, OTLP publishing (either ticker-polled or streamed from the
+// WebSocket). It is independent of serving Prometheus scrape requests, so
+// callers that only need scraping can still call it to populate metrics.
+func (e *Exporter) Start(ctx context.Context) {
+	if e.otlp != nil {
+		if e.otlpOptions.Mode == OTLPModeImmediate {
+			e.runOTLPStream()
+		} else {
+			go e.runOTLPPolling()
+		}
+	}
+
+	if e.ws != nil {
+		go e.ws.run(ctx)
 	}
 }
 

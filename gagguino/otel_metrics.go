@@ -14,12 +14,20 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
+const (
+	// OTLPModeInterval polls the machine state on a fixed ticker (default).
+	OTLPModeInterval = "interval"
+	// OTLPModeImmediate publishes metrics as soon as new state arrives over the WebSocket.
+	OTLPModeImmediate = "immediate"
+)
+
 type OTLPOptions struct {
 	Enabled  bool
 	Endpoint string
 	Interval time.Duration
 	Timeout  time.Duration
 	Headers  map[string]string
+	Mode     string
 }
 
 type otlpMetrics struct {
